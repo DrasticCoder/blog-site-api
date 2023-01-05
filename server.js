@@ -2,15 +2,18 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-require('dotenv').config();
+const cors = require('cors');
 
+require('dotenv').config();
 
 // initializing express app
 const app = express();
 
-// multer
-const multer = require('multer')
-const upload = multer({ dest: 'uploads/' })
+// cors
+app.use(cors());
+
+// static
+// app.use(express.static(__dirname + 'public/uploads'))
 
 // passport
 const passport = require('passport')
@@ -23,13 +26,14 @@ app.use(bodyParser.urlencoded({extended:false}));
 
 app.use(bodyParser.json());
 
+mongoose.set('strictQuery',true)
+
 // connect to db
 mongoose.connect('mongodb+srv://test:test@test.p2fum9f.mongodb.net/?retryWrites=true&w=majority')
  .then(()=>{
     console.log('connected to db');
  })
 
- mongoose.set('strictQuery',true)
 
 // import routers
 const userRouter = require('./routers/user.router');
@@ -42,7 +46,7 @@ app.use('/user',userRouter);
 // app.use('/comment',commentRouter);
 
 
-const port = process.env.port || 9000;
+const port = process.env.PORT || 9000;
 app.listen(port,()=>{
     console.log('server is up and running on port :',port);
 })

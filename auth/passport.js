@@ -12,14 +12,24 @@ opts.secretOrKey = process.env.SECRET;
 
 module.exports = passport => {
     passport.use(new JwtStrategy(opts, (payload,done) => {
-        User.findOne({id:payload.foundUser._id},(err,user)=>{
-            if(user)return done(null,user);
+        User.findOne({_id:payload.id},(err,user)=>{
+            if(user){
+                console.log("THIS IS PAYLOAD",payload)
+                // passport.serializeUser(function(user, done) {
+                //     done(null, user);
+                // });
+                
+                // passport.deserializeUser(function(obj, done) {
+                //     done(null, obj);
+                // });
+                return done(null,user);
+            }
             else{
                 return done(null,false)
             }
-            // console.log(payload)
         })
 
         return payload
-    }))
+    }
+    ))
 }

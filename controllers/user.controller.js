@@ -24,59 +24,182 @@ const signToken = require("../middlewares/signToken");
 
 // controller functions
 const test = (req, res) => {
-  console.log("__req.user__", req.user.id);
-  res.send("user testing,,,");
+  const Url = `${req.protocol}://${req.get(
+    "host"
+  )}/user/verify/password/${123}`;
+  
+  res.send(Url);
+  // res.json({user:req.user});
+  // console.log(req.user,'USER')
+  // console.log("__req.user__", req.get("host"), req.originalUrl);
+  // let randomString = "web3sf04nd4r4";
+  // res.send(`${req.protocol}://${req.get("host")}/user/verify/${randomString}`);
 };
 
 // register
 const register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email } = req.body;
 
-  // hashing password using bcrypt
-  bcrypt.hash(password, 10, async (err, hash) => {
-    const newUser = new User({
-      name,
-      email,
-      password: hash,
-    });
-    // register user successfully
-    await newUser
-      .save()
-      .then(() => {
-        // sign JWT token for user
-        const tokenData = signToken(newUser);
-        console.log(tokenData);
-        res.status(200).json(newUser);
-      })
-      .catch((err) => {
-        console.log("user already exist");
-      });
+  // check if user already exist
+  const userExist = await User.findOne({ email });
+  if (userExist) {
+    res.json({ message: "User already exist" });
+    return;
+  }
+
+  const newUser = User.create({
+    name,
+    email
+  })
+
+  const Url = `${req.protocol}://${req.get(
+    "host"
+  )}/user/verify/password/${(await newUser).id}`;
+  
+
+  const mailTemplate = {
+    from: "deepbansodeofficial4205@gmail.com",
+    to: email,
+    subject: "Alpha Blogs",
+    text: `Hey ${name} ,Verify your account by setting up password`,
+    html: `
+    <form action='${Url}' method="post">
+    <input type="password" name="password" placeholder="Enter your password">
+    <button type="submit">Submit</button>
+    <button type="reset">Reset</button>
+</form>`
+  };
+
+  mailTransporter.sendMail(mailTemplate, (err) => {
+    if (err) {
+      console.log("error:", err);
+    } else {
+      res.send("mail send");
+      console.log(`mail send to ${email}.`);
+    }
   });
 };
 
-// send verification mail to user
-const sendMailToUser = async(req, res) => {
-  const userId = req.user.id;
-  const randomInt = Math.floor(Math.random() * (1000000 - 10000 + 1)) + 10000;
+const verifyUserByPassword = async (req,res) => {
+  const {id} = req.params;
+  const {password} = req.body;
 
-  const user = await User.findById(userId, (err, foundUser) => {
+  // hashing password using bcrypt
+  bcrypt.hash(password, 10, async (err, hash) => {
+    if(err){
+      console.log(err);
+    }else{
+      const updatedUser = await User.findByIdAndUpdate(id,{password:hash},{new:true})
+      if(updatedUser){
+        console.log(updatedUser)
+        res.send('Account verification successful, Kindly return to our website.');
+      } else{
+        res.status(404).json({message:'User not found'});
+      }
+    }
+  })
+
+}
+
+const forgetPassword1 = async (req,res) => {
+  const {email} = req.body;
+
+  const foundUser = await User.findOne({email});
+  if(foundUser){
+    const Url = `${req.protocol}://${req.get(
+    "host"
+  )}/user/change/password/${foundUser.id}`;
+
     const mailTemplate = {
       from: "deepbansodeofficial4205@gmail.com",
-      to: foundUser.email,
-      subject: "Testing...",
-      text: `Hey ${foundUser.name} ,Verify your account by clicking this link`,
-      html: `<a href='${req.origin + "/" + randomInt}'> VERIFY </a>`,
+      to: email,
+      subject: "Alpha Blogs",
+      text: `Hey ${foundUser.name} , reset your password `,
+      html: `
+      <form action='${Url}' method="post">
+      <label for="password">password:</label>
+      <input type="password" name="password" id="password" placeholder="Enter your password">
+      <button type="submit">Submit</button>
+  </form>`
     };
-
-     mailTransporter.sendMail(mailTemplate, (err) => {
+  
+    mailTransporter.sendMail(mailTemplate, (err) => {
       if (err) {
-        console.log(err);
+        console.log("error:", err);
       } else {
-        res.send('mail send')
-        console.log("mail send.");
+        res.send("mail send");
+        console.log(`mail send to ${email}.`);
       }
     });
+  }else{
+    res.json({message:'Account not found with this email!'})
+  }
+}
+
+const forgetPassword2 = (req,res) => {
+  const {id} = req.params;
+  const {password} = req.body;
+
+  // hashing password using bcrypt
+  bcrypt.hash(password, 10, async (err, hash) => {
+    if(err){
+      console.log(err);
+    }else{
+      const updatedUser = await User.findByIdAndUpdate(id,{password:hash},{new:true})
+      if(updatedUser){
+        console.log(updatedUser)
+        res.send('Password updated successfully, Kindly return to our website.');
+      } else{
+        res.status(404).json({message:'User not found'});
+      }
+    }
+  })
+}
+
+// send verification mail to user
+const sendMailToUser = async (req, res) => {
+  const userId = req.user.id;
+  console.log(userId,'req.user.id')
+  const randomStr =
+    Math.floor(Math.random() * (100000000 - 1000000 + 1)) + 1000000;
+  const verifyUrl = `${req.protocol}://${req.get(
+    "host"
+  )}/user/verify/${randomStr}`;
+  const vUser = await User.findById(userId);
+  const mailTemplate = {
+    from: "deepbansodeofficial4205@gmail.com",
+    to: vUser.email,
+    subject: "Testing...",
+    text: `Hey ${vUser.name} ,Verify your account by clicking this link`,
+    html: `<a href='${verifyUrl}'> VERIFY </a>`,
+  };
+
+  mailTransporter.sendMail(mailTemplate, (err) => {
+    if (err) {
+      console.log("error:", err);
+    } else {
+      res.send("mail send");
+      console.log(`mail send to ${vUser.email}.`);
+    }
   });
+
+  vUser.vCode == randomStr;
+  vUser.save();
+};
+
+// verify user
+const verifyUser = async (req, res) => {
+  const verificationCode = req.params.id;
+  const user = await User.findById(req.user.id);
+
+  if (verificationCode == user.vCode) {
+    user.isVerified == true;
+    user.save();
+
+    res.status(200).json({ message: "User verified successfully." });
+  } else {
+    res.status(500).json({ message: "Oops! something went wrong." });
+  }
 };
 
 // login
@@ -86,23 +209,34 @@ const login = async (req, res, next) => {
   const foundUser = await User.findOne({ email: email });
 
   if (foundUser) {
-    console.log("login func");
-    const result = await bcrypt.compare(password, foundUser.password);
-    console.log(result, "this is RESULT");
-    if (result) {
-      // console.log('found User:',foundUser)
-      const token = await jwt.sign({ foundUser }, process.env.SECRET, {
-        expiresIn: "2h",
-      }); //TODO: Increase expire time
-      res.status(200).json({ token: "Bearer " + token });
-    }
+    bcrypt.compare(password, foundUser.password, (err, result) => {
+      if (result) {
+        const token = jwt.sign(
+          {
+            id: foundUser._id,
+            name: foundUser.name,
+            email: foundUser.email,
+            password: foundUser.password,
+            isVerified: foundUser.isVerified,
+            Blogs: foundUser.Blogs,
+          },
+          process.env.SECRET,
+          {
+            expiresIn: "2h",
+          }
+        ); //TODO: Increase expire time
+        res.status(200).json({ token: token, message : 'login successful'});
+      } else {
+        res.status(404).json({message:'Invalid Creadentials'})
+      }
+    });
   } else {
-    res.status(404).json({ message: "Username or password is incorrect" });
+    res.status(404).json({ message: "User not found" });
   }
 };
 
 // change password
-const changePassword = async(next, req, res) => {
+const changePassword = async (next, req, res) => {
   const { oldPassword, newPassword } = req.body;
 
   const id = req.user.id;
@@ -119,9 +253,8 @@ const changePassword = async(next, req, res) => {
             console.log(err);
           } else {
             user.password == hash;
-             user.save().then(() => {
+            user.save()
               res.status(201).json({ message: "password updated " });
-            });
           }
         });
       } else {
@@ -137,4 +270,7 @@ module.exports = {
   login,
   changePassword,
   sendMailToUser,
+  verifyUserByPassword,
+  forgetPassword1,
+  forgetPassword2
 };
